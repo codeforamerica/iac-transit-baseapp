@@ -1,6 +1,12 @@
 # IaC TRANSIT Base App - To-Do Application
 
-A simple, sleek To-Do application built for testing Infrastructure as Code (IaC) translation between AWS, Azure, and GCP. This base app is AWS-native and designed to be translated to other cloud platforms using AI tools.
+A simple, sleek To-Do application built for testing Infrastructure as Code (IaC) translation between AWS, Azure, and GCP. 
+
+## Discovery Cycle Purpose
+
+This base app will be used for our discovery cycle to test how AI tools translate Infrastructure as Code (IaC) between AWS, Azure, and GCP—using a simple full-stack app—to simplify migrations. The goal is to assess tool effectiveness, with deliverables including findings, guidance, and a practical playbook for engineers and architects.
+
+This base app is AWS-native and designed to be translated to other cloud platforms using AI tools.
 
 ## Architecture
 
