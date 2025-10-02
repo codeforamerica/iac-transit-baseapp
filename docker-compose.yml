@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - API_PORT=3001
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=todoapp
+      - DB_USER=todoapp_user
+      - DB_PASSWORD=todoapp_password
+    depends_on:
+      - db
+    volumes:
+      - ./backend/data:/app/data
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:3001
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=todoapp
+      - POSTGRES_USER=todoapp_user
+      - POSTGRES_PASSWORD=todoapp_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
