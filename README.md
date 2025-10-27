@@ -96,6 +96,22 @@ This base app is AWS-native and designed to be translated to other cloud platfor
    ./scripts/deploy.sh
    ```
 
+### Teardown / Cleanup
+
+To destroy all AWS resources and stop incurring costs:
+
+```bash
+./scripts/destroy.sh
+```
+
+This will:
+- Destroy all Terraform-managed resources
+- Delete ECS services, tasks, and clusters
+- Delete RDS instances
+- Remove VPC, subnets, and security groups
+- Keep CloudWatch logs for 30 days (retention policy)
+- Create RDS final snapshot before deletion
+
 ## Environment Variables
 
 ### Non-sensitive (.env file)
