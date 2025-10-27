@@ -132,12 +132,39 @@ This AWS-native application is designed to be translated to other cloud platform
 - RDS → Azure Database for PostgreSQL
 - Secrets Manager → Azure Key Vault
 - VPC → Azure Virtual Network
+- **CloudWatch Logs → Azure Monitor / Azure Log Analytics**
 
 ### AWS → GCP
 - ECS → Cloud Run
 - RDS → Cloud SQL
 - Secrets Manager → Secret Manager
 - VPC → VPC Network
+- **CloudWatch Logs → Cloud Logging**
+
+## Logging
+
+The application includes comprehensive logging in both local and cloud environments:
+
+### Local Development
+- **Log files**: `backend/logs/*.log` (info.log, error.log, warn.log, debug.log)
+- **Features**: Timestamps, log levels, structured metadata
+- **Cost**: Free (local file storage)
+
+### AWS Deployment
+- **Service**: CloudWatch Logs
+- **Log group**: `/ecs/todoapp-dev`
+- **Retention**: 30 days
+- **Cost**: ~$2–5/month
+- **Access**: AWS Console → CloudWatch → Log Groups
+
+### Logging Features
+- API request logging (endpoint, method, IP, user agent)
+- Database operations (connections, queries)
+- Error tracking (stack traces, context)
+- Application events (startup, shutdown, health checks)
+- Real-time log streaming
+
+For detailed logging documentation, see [docs/api.md](docs/api.md).
 
 ## API Endpoints
 
