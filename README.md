@@ -196,13 +196,21 @@ This is a base template for IaC translation testing. Feel free to modify and ext
 
 ## Cost Considerations
 
-- RDS: ~$15–20/month (db.t3.micro)
+- RDS: ~$15–20/month (db.t3.micro, 31-day backups)
 - ECS Fargate: ~$10–15/month (256 CPU, 512 MB)
+- VPC Flow Logs: ~$0.50/month (CloudWatch Logs ingestion)
+- KMS encryption: ~$1/month (CMK for logs)
 - Data transfer: minimal for testing
 
-**Total: ~$25–35/month for the simplified stack.**
+**Total: ~$27–37/month for the simplified stack.**
 
 *Note: ALB and NAT Gateways have been removed to reduce costs for the discovery cycle. ECS tasks run in public subnets with direct public IPs, while RDS remains in private subnets for security.*
+
+**AWS Compliance Updates**: The infrastructure now includes VPC Flow Logs, KMS-encrypted CloudWatch Logs, extended RDS backup retention (31 days), and restrictive security group rules to meet AWS baseline compliance requirements.
+
+## Acknowledgments
+
+This application and its Infrastructure as Code were built with the assistance of **Cursor**, an AI-powered code editor.
 
 ## License
 

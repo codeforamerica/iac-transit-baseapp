@@ -93,3 +93,82 @@ resource "aws_route_table_association" "private" {
   subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private[count.index].id
 }
+
+# Default Security Group - Deny all traffic
+resource "aws_default_security_group" "default" {
+  vpc_id = aws_vpc.main.id
+
+  # Remove all default rules
+  ingress = []
+  egress  = []
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-default-sg"
+  })
+}
+
+# VPC Flow Logs
+resource "aws_flow_log" "vpc_flow_log" {
+  iam_role_arn    = aws_iam_role.vpc_flow_log_role.arn
+  log_destination = aws_cloudwatch_log_group.vpc_flow_log.arn
+  traffic_type    = "ALL"
+  vpc_id          = aws_vpc.main.id
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-vpc-flow-log"
+  })
+}
+
+# CloudWatch Log Group for VPC Flow Logs
+resource "aws_cloudwatch_log_group" "vpc_flow_log" {
+  name              = "/aws/vpc/${local.name_prefix}-flowlogs"
+  retention_in_days = 30
+  kms_key_id        = aws_kms_key.cloudwatch_logs.arn
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-vpc-flow-log-group"
+  })
+}
+
+# IAM Role for VPC Flow Logs
+resource "aws_iam_role" "vpc_flow_log_role" {
+  name = "${local.name_prefix}-vpc-flow-log-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "vpc-flow-logs.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
+# IAM Policy for VPC Flow Logs
+resource "aws_iam_role_policy" "vpc_flow_log_policy" {
+  name = "${local.name_prefix}-vpc-flow-log-policy"
+  role = aws_iam_role.vpc_flow_log_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
