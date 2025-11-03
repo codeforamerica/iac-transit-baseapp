@@ -33,29 +33,19 @@ This base app is AWS-native and designed to be translated to other cloud platfor
    ```bash
    git clone <repo-url>
    cd IaC_TRANSIT_baseapp
-   cp .env.example .env
+   cp .env.example .env.local
    ```
 
-2. **Set up environment variables** (choose one method):
-
-   **Method 1: Command line**
+2. **Set up sensitive environment variables** (required):
+   
+   Export database credentials via terminal before running docker-compose:
    ```bash
-   export DB_HOST=localhost
-   export DB_PORT=5432
-   export DB_NAME=todoapp
    export DB_USER=todoapp_user
-   export DB_PASSWORD=your_password
+   export DB_PASSWORD=todoapp_password
+   docker-compose up
    ```
-
-   **Method 2: .env.local file** (gitignored)
-   ```bash
-   # Create .env.local with sensitive variables
-   echo "DB_HOST=localhost" >> .env.local
-   echo "DB_PORT=5432" >> .env.local
-   echo "DB_NAME=todoapp" >> .env.local
-   echo "DB_USER=todoapp_user" >> .env.local
-   echo "DB_PASSWORD=your_password" >> .env.local
-   ```
+   
+   **Note:** Sensitive credentials must be set via terminal exports, not stored in files. This prevents accidental exposure to AI tools like Cursor.
 
 3. **Start the application**:
    ```bash
@@ -136,10 +126,82 @@ DB_PASSWORD=your_password
 
 ## Security
 
-- **Never commit sensitive data** to version control
-- **Use AWS Secrets Manager** for production deployments
-- **Use command-line environment variables** for local testing
-- **.env.local files** are gitignored for local development
+### Environment Variables Strategy
+
+This project uses a **two-tier approach** for environment management:
+
+#### Non-Sensitive Configuration (`.env.local`)
+- **What goes here:** Database host, port, name, API port, frontend URLs, Node environment
+- **Storage:** `.env.local` (gitignored, safe to commit to `.gitignore`)
+- **Use case:** Shared configuration that developers need to customize locally
+- **Example:** See `.env.example` (committed to git)
+
+#### Sensitive Credentials (Terminal Exports)
+- **What goes here:** Database username, password, API keys, secrets
+- **Storage:** Terminal environment variables ONLY (`export DB_USER=...`)
+- **Never:** Store in `.env`, `.env.local`, or any file
+- **Use case:** Prevents accidental exposure to version control and AI tools
+
+**Setup:**
+```bash
+# Copy non-sensitive config
+cp .env.example .env.local
+
+# Export sensitive credentials in current shell
+export DB_USER=todoapp_user
+export DB_PASSWORD=todoapp_password
+
+# Then run docker-compose
+docker-compose up
+```
+
+### Security with AI Tools (Cursor, Claude Code)
+
+#### What is `.cursorignore`?
+- Excludes files from Cursor AI context and indexing
+- **NOT a complete security guarantee** - it's a convenience feature
+- Files listed may still be accessed through system commands or indirect methods
+
+#### Important Warning
+**Do NOT rely on `.cursorignore` to protect sensitive data.** Even with `.cursorignore`, credentials in files can potentially be exposed through:
+- File system access
+- System command execution
+- Indirect references
+- Caching
+
+**The safe approach:** Keep sensitive data in terminal environment variables only, never in files.
+
+#### `.cursorignore` is for convenience, not security
+We use `.cursorignore` to exclude:
+- `.env.local` and `.env.*`
+- Key files, certificates, secrets directories
+- Node modules, build artifacts, etc.
+
+This helps reduce noise in AI processing, but **primary protection comes from not storing secrets in files.**
+
+### AWS Production Secrets
+
+For production deployment:
+- Store all secrets in **AWS Secrets Manager**
+- Retrieve at runtime via AWS SDK
+- Never commit or expose credentials
+- See [AWS Deployment](#aws-deployment) section for setup
+
+### Best Practices
+
+✅ **DO:**
+- Keep sensitive credentials in terminal exports or AWS Secrets Manager
+- Use `.env.local` for non-sensitive configuration only
+- Add sensitive file patterns to `.cursorignore` and `.gitignore`
+- Rotate credentials regularly
+- Use strong, unique passwords
+
+❌ **DON'T:**
+- Store secrets in `.env`, `.env.local`, or any committed file
+- Rely solely on `.cursorignore` for security
+- Share terminal exports or commit env files
+- Use default/simple passwords in production
+- Log sensitive information
 
 ## Translation Guide
 

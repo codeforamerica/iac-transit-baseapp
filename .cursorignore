@@ -1,0 +1,15 @@
+# Ignore sensitive files from Cursor AI context and indexing
+.env.local
+.env
+.env.*.local
+*.key
+*.pem
+*.pkcs8
+secrets/
+.aws/
+AWS_*
+node_modules/
+.git/
+coverage/
+dist/
+build/
