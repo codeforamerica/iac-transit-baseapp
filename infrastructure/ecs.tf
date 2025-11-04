@@ -97,7 +97,7 @@ resource "aws_ecs_task_definition" "backend" {
         },
         {
           name  = "SECRETS_MANAGER_SECRET_NAME"
-          value = var.secrets_manager_secret_name
+          value = aws_secretsmanager_secret.main.name
         }
       ]
 
