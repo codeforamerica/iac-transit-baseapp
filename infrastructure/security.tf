@@ -37,6 +37,14 @@ resource "aws_security_group" "ecs_tasks" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  egress {
+    description     = "PostgreSQL to RDS"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.rds.id]
+  }
+
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-ecs-tasks-sg"
   })
@@ -59,17 +67,6 @@ resource "aws_security_group" "rds" {
   lifecycle {
     create_before_destroy = true
   }
-}
-
-# Security group rule: Allow ECS tasks to connect to RDS (from ECS egress)
-resource "aws_security_group_rule" "ecs_to_rds" {
-  type                     = "egress"
-  from_port                = 5432
-  to_port                  = 5432
-  protocol                 = "tcp"
-  security_group_id        = aws_security_group.ecs_tasks.id
-  source_security_group_id = aws_security_group.rds.id
-  description              = "PostgreSQL to RDS"
 }
 
 # Security group rule: Allow RDS to accept connections from ECS tasks

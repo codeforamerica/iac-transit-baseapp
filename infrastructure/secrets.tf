@@ -13,7 +13,7 @@ resource "aws_secretsmanager_secret" "main" {
 resource "aws_secretsmanager_secret_version" "main" {
   secret_id = aws_secretsmanager_secret.main.id
   secret_string = jsonencode({
-    db_host     = aws_db_instance.main.endpoint
+    db_host     = aws_db_instance.main.address
     db_port     = aws_db_instance.main.port
     db_name     = aws_db_instance.main.db_name
     db_user     = aws_db_instance.main.username
