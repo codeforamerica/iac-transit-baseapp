@@ -27,10 +27,10 @@ echo "Creating S3 bucket for Terraform state..."
 if aws s3 ls "s3://${BUCKET_NAME}" 2>/dev/null; then
     echo "✓ S3 bucket already exists: $BUCKET_NAME"
 else
+    # For us-east-1, don't use LocationConstraint
     aws s3api create-bucket \
         --bucket "$BUCKET_NAME" \
-        --region "$REGION" \
-        --create-bucket-configuration LocationConstraint="$REGION" || true
+        --region "$REGION" || true
     echo "✓ Created S3 bucket: $BUCKET_NAME"
 fi
 
@@ -38,7 +38,8 @@ fi
 echo "Enabling versioning on S3 bucket..."
 aws s3api put-bucket-versioning \
     --bucket "$BUCKET_NAME" \
-    --versioning-configuration Status=Enabled
+    --versioning-configuration Status=Enabled \
+    --region "$REGION"
 echo "✓ Versioning enabled"
 
 # Enable encryption on S3 bucket
@@ -51,7 +52,8 @@ aws s3api put-bucket-encryption \
                 "SSEAlgorithm": "AES256"
             }
         }]
-    }'
+    }' \
+    --region "$REGION"
 echo "✓ Encryption enabled"
 
 # Block public access to S3 bucket
@@ -59,7 +61,8 @@ echo "Blocking public access to S3 bucket..."
 aws s3api put-public-access-block \
     --bucket "$BUCKET_NAME" \
     --public-access-block-configuration \
-    "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
+    "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true" \
+    --region "$REGION"
 echo "✓ Public access blocked"
 
 # Create DynamoDB table for state locking
