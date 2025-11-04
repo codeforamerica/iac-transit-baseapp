@@ -37,14 +37,6 @@ resource "aws_security_group" "ecs_tasks" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  egress {
-    description     = "PostgreSQL to RDS"
-    from_port       = 5432
-    to_port         = 5432
-    protocol        = "tcp"
-    security_groups = [aws_security_group.rds.id]
-  }
-
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-ecs-tasks-sg"
   })
@@ -59,23 +51,7 @@ resource "aws_security_group" "rds" {
   name_prefix = "${local.name_prefix}-rds-"
   vpc_id      = aws_vpc.main.id
 
-  ingress {
-    description     = "PostgreSQL from ECS"
-    from_port       = 5432
-    to_port         = 5432
-    protocol        = "tcp"
-    security_groups = [aws_security_group.ecs_tasks.id]
-  }
-
-  # RDS doesn't need outbound internet access
-  egress {
-    description     = "PostgreSQL response to ECS"
-    from_port       = 0
-    to_port         = 65535
-    protocol        = "tcp"
-    security_groups = [aws_security_group.ecs_tasks.id]
-  }
-
+  # Ingress rule is defined separately to avoid circular dependency
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-rds-sg"
   })
@@ -83,4 +59,26 @@ resource "aws_security_group" "rds" {
   lifecycle {
     create_before_destroy = true
   }
+}
+
+# Security group rule: Allow ECS tasks to connect to RDS (from ECS egress)
+resource "aws_security_group_rule" "ecs_to_rds" {
+  type                     = "egress"
+  from_port                = 5432
+  to_port                  = 5432
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.ecs_tasks.id
+  source_security_group_id = aws_security_group.rds.id
+  description              = "PostgreSQL to RDS"
+}
+
+# Security group rule: Allow RDS to accept connections from ECS tasks
+resource "aws_security_group_rule" "rds_from_ecs" {
+  type                     = "ingress"
+  from_port                = 5432
+  to_port                  = 5432
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.rds.id
+  source_security_group_id = aws_security_group.ecs_tasks.id
+  description              = "PostgreSQL from ECS"
 }

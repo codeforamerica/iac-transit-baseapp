@@ -9,10 +9,11 @@ terraform {
   }
 
   backend "s3" {
-    # Configure backend in terraform.tfvars or via CLI
-    # bucket = "your-terraform-state-bucket"
-    # key    = "todoapp/terraform.tfstate"
-    # region = "us-east-1"
+    bucket         = "iac-transit-terraform-state"
+    key            = "todoapp/terraform.tfstate"
+    region         = "us-east-1"
+    encrypt        = true
+    dynamodb_table = "terraform-locks"
   }
 }
 
