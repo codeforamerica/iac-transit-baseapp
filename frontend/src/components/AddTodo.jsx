@@ -18,6 +18,8 @@ const AddTodo = ({ onAddTodo, loading }) => {
   return (
     <form onSubmit={handleSubmit} className="add-todo">
       <input
+        id="todo-input"
+        name="todo"
         type="text"
         value={text}
         onChange={(e) => setText(e.target.value)}
