@@ -1,6 +1,3 @@
-# Get current AWS account ID
-data "aws_caller_identity" "current" {}
-
 # Secrets Manager Secret with unique name
 resource "aws_secretsmanager_secret" "main" {
   name                    = var.secrets_manager_secret_name != "" ? var.secrets_manager_secret_name : "${local.name_prefix}-db-secret-${data.aws_caller_identity.current.account_id}"
