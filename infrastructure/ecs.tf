@@ -98,6 +98,10 @@ resource "aws_ecs_task_definition" "backend" {
         {
           name  = "SECRETS_MANAGER_SECRET_NAME"
           value = aws_secretsmanager_secret.main.name
+        },
+        {
+          name  = "FRONTEND_URL"
+          value = "http://${aws_lb.main.dns_name}"
         }
       ]
 
