@@ -124,6 +124,7 @@ resource "aws_cloudwatch_log_group" "vpc_flow_log" {
   name              = "/aws/vpc/${local.name_prefix}-flowlogs"
   retention_in_days = 30
   kms_key_id        = aws_kms_key.cloudwatch_logs.arn
+  force_delete      = true
 
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-vpc-flow-log-group"
