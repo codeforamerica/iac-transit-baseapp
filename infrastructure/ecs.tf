@@ -150,7 +150,7 @@ resource "aws_ecs_task_definition" "frontend" {
       environment = [
         {
           name  = "REACT_APP_API_URL"
-          value = "http://localhost:3001"
+          value = "http://${aws_lb.main.dns_name}:3001"
         }
       ]
 
@@ -192,7 +192,13 @@ resource "aws_ecs_service" "backend" {
     assign_public_ip = true
   }
 
-  # No load balancer - direct public IP access
+  load_balancer {
+    target_group_arn = aws_lb_target_group.backend.arn
+    container_name   = "backend"
+    container_port   = var.container_port
+  }
+
+  depends_on = [aws_lb_listener.backend]
 
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-backend-service"
@@ -213,7 +219,13 @@ resource "aws_ecs_service" "frontend" {
     assign_public_ip = true
   }
 
-  # No load balancer - direct public IP access
+  load_balancer {
+    target_group_arn = aws_lb_target_group.frontend.arn
+    container_name   = "frontend"
+    container_port   = var.frontend_port
+  }
+
+  depends_on = [aws_lb_listener.frontend]
 
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-frontend-service"

@@ -24,8 +24,6 @@ output "rds_port" {
   value       = aws_db_instance.main.port
 }
 
-# ALB removed for cost optimization
-
 output "ecs_cluster_name" {
   description = "ECS cluster name"
   value       = aws_ecs_cluster.main.name
@@ -51,7 +49,7 @@ output "cloudwatch_log_group_name" {
   value       = aws_cloudwatch_log_group.main.name
 }
 
-output "application_url" {
-  description = "Application URL (ECS tasks with public IPs)"
-  value       = "Access via ECS task public IPs - check ECS console for IP addresses"
+output "load_balancer_url" {
+  description = "Application URL (Load Balancer)"
+  value       = "http://${aws_lb.main.dns_name}"
 }
