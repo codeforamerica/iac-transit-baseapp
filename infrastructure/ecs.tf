@@ -154,7 +154,11 @@ resource "aws_ecs_task_definition" "frontend" {
       environment = [
         {
           name  = "REACT_APP_API_URL"
-          value = "http://${aws_lb.main.dns_name}:3001"
+          value = "http://localhost:3001"
+        },
+        {
+          name  = "ALB_DNS"
+          value = aws_lb.main.dns_name
         }
       ]
 

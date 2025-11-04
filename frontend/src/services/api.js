@@ -1,69 +1,58 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+let API_URL = '/api'; // Default to relative path for local dev
 
-const api = axios.create({
-  baseURL: `${API_BASE_URL}/api`,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Request interceptor for logging
-api.interceptors.request.use(
-  (config) => {
-    console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
-    return config;
-  },
-  (error) => {
-    console.error('API Request Error:', error);
-    return Promise.reject(error);
+// Try to load from runtime config if available
+async function initializeAPI() {
+  try {
+    const response = await fetch('/config.json');
+    if (response.ok) {
+      const config = await response.json();
+      API_URL = config.apiUrl || '/api';
+    }
+  } catch (e) {
+    // Silently fail and use default
+    console.log('Using default API URL:', API_URL);
   }
-);
+}
 
-// Response interceptor for error handling
-api.interceptors.response.use(
-  (response) => {
-    console.log(`API Response: ${response.status} ${response.config.url}`);
-    return response;
-  },
-  (error) => {
-    console.error('API Response Error:', error.response?.data || error.message);
-    return Promise.reject(error);
-  }
-);
+// Initialize on module load
+initializeAPI();
 
-export const todoAPI = {
-  // Get all todos
-  getTodos: async () => {
-    const response = await api.get('/todos');
-    return response.data;
-  },
+export function getAPIUrl() {
+  return API_URL;
+}
 
-  // Create a new todo
-  createTodo: async (todo) => {
-    const response = await api.post('/todos', todo);
-    return response.data;
-  },
+export async function fetchTodos() {
+  const response = await fetch(`${API_URL}/todos`);
+  if (!response.ok) throw new Error('Failed to fetch todos');
+  return response.json();
+}
 
-  // Update a todo
-  updateTodo: async (id, todo) => {
-    const response = await api.put(`/todos/${id}`, todo);
-    return response.data;
-  },
+export async function addTodo(text) {
+  const response = await fetch(`${API_URL}/todos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  });
+  if (!response.ok) throw new Error('Failed to add todo');
+  return response.json();
+}
 
-  // Delete a todo
-  deleteTodo: async (id) => {
-    const response = await api.delete(`/todos/${id}`);
-    return response.data;
-  },
+export async function updateTodo(id, updates) {
+  const response = await fetch(`${API_URL}/todos/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates)
+  });
+  if (!response.ok) throw new Error('Failed to update todo');
+  return response.json();
+}
 
-  // Health check
-  healthCheck: async () => {
-    const response = await api.get('/health');
-    return response.data;
-  },
-};
-
-export default api;
+export async function deleteTodo(id) {
+  const response = await fetch(`${API_URL}/todos/${id}`, {
+    method: 'DELETE'
+  });
+  if (!response.ok) throw new Error('Failed to delete todo');
+  return response.json();
+}
