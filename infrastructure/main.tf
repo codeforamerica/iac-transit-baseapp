@@ -8,17 +8,13 @@ terraform {
     }
   }
 
-  # S3 Backend Configuration for Production State Management
-  # To use this, first run: bash ../scripts/setup-terraform-backend.sh
-  # Then uncomment this block and run: terraform init
-  # For production deployment with persistent state in S3:
-  # backend "s3" {
-  #   bucket         = "iac-transit-terraform-state"
-  #   key            = "todoapp/terraform.tfstate"
-  #   region         = "us-east-1"
-  #   encrypt        = true
-  #   dynamodb_table = "terraform-locks"
-  # }
+  backend "s3" {
+    bucket         = "iac-transit-terraform-state"
+    key            = "todoapp/terraform.tfstate"
+    region         = "us-east-1"
+    encrypt        = true
+    dynamodb_table = "terraform-locks"
+  }
 }
 
 provider "aws" {
