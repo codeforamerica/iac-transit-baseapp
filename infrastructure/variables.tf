@@ -103,7 +103,7 @@ variable "frontend_port" {
 variable "secrets_manager_secret_name" {
   description = "Secrets Manager secret name"
   type        = string
-  default     = "todoapp-secrets"
+  default     = ""  # Will be set dynamically based on environment and account
 }
 
 variable "domain_name" {
