@@ -66,13 +66,8 @@ docker-compose down -v
    ```
 3. **Terraform** installed (v1.0+)
 4. **Valid AWS IAM user credentials** with permissions for:
-   - EC2
-   - ECS
-   - RDS
-   - VPC
-   - IAM
-   - S3 (for Terraform state)
-   - DynamoDB (for state locking)
+   - EC2, ECS, RDS, VPC, IAM, S3, DynamoDB, ECR, CloudWatch, KMS, Secrets Manager
+5. **Docker** installed locally (for building and pushing images)
 
 ### Architecture
 
@@ -80,27 +75,35 @@ The Terraform infrastructure deploys:
 
 - **VPC** with public and private subnets
 - **ECS Fargate** cluster for containerized services
-- **Application Load Balancer** (optional, can be removed for cost optimization)
-- **RDS PostgreSQL** database
+- **RDS PostgreSQL** database (version 15.7)
+- **ECR repositories** for backend and frontend images
+- **CloudWatch** logs with KMS encryption
+- **Secrets Manager** for database credentials
 - **Security Groups** for network isolation
-- **CloudWatch** logs for monitoring
+- **IAM roles** for service authentication
 
-### Step 1: Setup Terraform Backend
+---
 
-Before deploying infrastructure, create the S3 bucket and DynamoDB table for Terraform state management:
+## Complete Deployment Workflow
+
+### Step 1: Setup Terraform Backend (First Time Only)
+
+Before initializing Terraform, create the S3 bucket and DynamoDB table:
 
 ```bash
-# Verify AWS credentials work
-aws sts get-caller-identity
+# Export AWS credentials
+export AWS_ACCESS_KEY_ID="your_key"
+export AWS_SECRET_ACCESS_KEY="your_secret"
+export AWS_SESSION_TOKEN="your_token"  # if using temporary credentials
 
-# Run the backend setup script
+# Run backend setup script
 bash scripts/setup-terraform-backend.sh
 ```
 
-This script will:
-- Create S3 bucket `iac-transit-terraform-state`
-- Enable versioning and encryption
-- Create DynamoDB table `terraform-locks` for state locking
+This creates:
+- S3 bucket for Terraform state with versioning and encryption
+- DynamoDB table for state locking
+- Proper access controls and security settings
 
 ### Step 2: Initialize Terraform
 
@@ -109,31 +112,46 @@ cd infrastructure
 terraform init
 ```
 
-This will:
-- Download AWS provider
-- Configure S3 backend
-- Create Terraform lock file
+### Step 3: Build and Push Docker Images to ECR
 
-### Step 3: Configure Terraform Variables
-
-Review and customize `infrastructure/terraform.tfvars` or create one:
-
-```hcl
-aws_region       = "us-east-1"
-environment      = "production"
-project_name     = "todoapp"
-app_count        = 2
-container_cpu    = 256
-container_memory = 512
-```
-
-### Step 4: Plan Terraform Changes
+Before applying Terraform, you need to build and push the Docker images:
 
 ```bash
-terraform plan -out=tfplan
+# Get your AWS Account ID
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+REGION="us-east-1"
+
+# Login to ECR
+aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
+
+# Build and push backend image
+docker build -t todoapp-backend ./backend
+docker tag todoapp-backend:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/todoapp-dev-backend:latest
+docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/todoapp-dev-backend:latest
+
+# Install react-scripts locally (required for frontend build)
+cd frontend
+npm install
+cd ..
+
+# Build and push frontend image
+docker build -t todoapp-frontend ./frontend
+docker tag todoapp-frontend:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/todoapp-dev-frontend:latest
+docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/todoapp-dev-frontend:latest
 ```
 
-Review the output to see what resources will be created.
+**Important:** Make sure `react-scripts` is installed locally in the frontend directory before building the image. If you get "react-scripts: not found" errors, run `npm install` in the frontend directory.
+
+### Step 4: Plan Infrastructure Changes
+
+```bash
+terraform plan \
+  -var="aws_region=us-east-1" \
+  -var="db_password=YourSecurePassword123" \
+  -out=tfplan
+```
+
+Review the plan to see what resources will be created.
 
 ### Step 5: Apply Terraform Configuration
 
@@ -141,37 +159,31 @@ Review the output to see what resources will be created.
 terraform apply tfplan
 ```
 
-This will create all AWS infrastructure.
+This will create:
+- VPC and networking infrastructure
+- RDS PostgreSQL database
+- ECS cluster and services (using the images you pushed)
+- Security groups and IAM roles
+- CloudWatch logs and monitoring
+- Secrets Manager entries for database credentials
 
-### Step 6: Deploy Application
+**Expected Duration:** 8-15 minutes
 
-The Terraform configuration includes:
-- **ECR repositories** for Docker images
-- **ECS task definitions** for services
-- **ECS services** to run tasks
+### Step 6: Verify Deployment
 
-To deploy:
+```bash
+# Get output values
+terraform output
 
-1. **Build and push Docker images to ECR**
-   ```bash
-   # Backend
-   docker build -t todoapp-backend ./backend
-   docker tag todoapp-backend:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/todoapp-backend:latest
-   docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/todoapp-backend:latest
-   
-   # Frontend
-   docker build -t todoapp-frontend ./frontend
-   docker tag todoapp-frontend:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/todoapp-frontend:latest
-   docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/todoapp-frontend:latest
-   ```
+# Check ECS services
+aws ecs describe-services \
+  --cluster todoapp-dev \
+  --services todoapp-backend todoapp-frontend \
+  --region us-east-1
 
-2. **Update ECS service**
-   ```bash
-   aws ecs update-service \
-     --cluster todoapp-production \
-     --service todoapp-backend \
-     --force-new-deployment
-   ```
+# View logs
+aws logs tail /ecs/todoapp-dev --follow --region us-east-1
+```
 
 ---
 
@@ -362,3 +374,185 @@ For issues or questions:
 2. Review Terraform state: `terraform show`
 3. Check AWS console for resource status
 4. Review security group rules and routing tables
+
+## AWS Cloud Deployment
+
+### Prerequisites
+
+1. **AWS Account** with appropriate permissions
+2. **AWS CLI** installed and configured
+   ```bash
+   aws configure
+   ```
+3. **Terraform** installed (v1.0+)
+4. **Valid AWS IAM user credentials** with permissions for:
+   - EC2, ECS, RDS, VPC, IAM, S3, DynamoDB, ECR, CloudWatch, KMS, Secrets Manager
+5. **Docker** installed locally (for building and pushing images)
+
+### Architecture
+
+The Terraform infrastructure deploys:
+
+- **VPC** with public and private subnets
+- **ECS Fargate** cluster for containerized services
+- **RDS PostgreSQL** database (version 15.7)
+- **ECR repositories** for backend and frontend images
+- **CloudWatch** logs with KMS encryption
+- **Secrets Manager** for database credentials
+- **Security Groups** for network isolation
+- **IAM roles** for service authentication
+
+---
+
+## Complete Deployment Workflow
+
+### Step 1: Setup Terraform Backend (First Time Only)
+
+Before initializing Terraform, create the S3 bucket and DynamoDB table:
+
+```bash
+# Export AWS credentials
+export AWS_ACCESS_KEY_ID="your_key"
+export AWS_SECRET_ACCESS_KEY="your_secret"
+export AWS_SESSION_TOKEN="your_token"  # if using temporary credentials
+
+# Run backend setup script
+bash scripts/setup-terraform-backend.sh
+```
+
+This creates:
+- S3 bucket for Terraform state with versioning and encryption
+- DynamoDB table for state locking
+- Proper access controls and security settings
+
+### Step 2: Initialize Terraform
+
+```bash
+cd infrastructure
+terraform init
+```
+
+### Step 3: Build and Push Docker Images to ECR
+
+Before applying Terraform, you need to build and push the Docker images:
+
+```bash
+# Get your AWS Account ID
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+REGION="us-east-1"
+
+# Login to ECR
+aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
+
+# Build and push backend image
+docker build -t todoapp-backend ./backend
+docker tag todoapp-backend:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/todoapp-dev-backend:latest
+docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/todoapp-dev-backend:latest
+
+# Install react-scripts locally (required for frontend build)
+cd frontend
+npm install
+cd ..
+
+# Build and push frontend image
+docker build -t todoapp-frontend ./frontend
+docker tag todoapp-frontend:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/todoapp-dev-frontend:latest
+docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/todoapp-dev-frontend:latest
+```
+
+**Important:** Make sure `react-scripts` is installed locally in the frontend directory before building the image. If you get "react-scripts: not found" errors, run `npm install` in the frontend directory.
+
+### Step 4: Plan Infrastructure Changes
+
+```bash
+terraform plan \
+  -var="aws_region=us-east-1" \
+  -var="db_password=YourSecurePassword123" \
+  -out=tfplan
+```
+
+Review the plan to see what resources will be created.
+
+### Step 5: Apply Terraform Configuration
+
+```bash
+terraform apply tfplan
+```
+
+This will create:
+- VPC and networking infrastructure
+- RDS PostgreSQL database
+- ECS cluster and services (using the images you pushed)
+- Security groups and IAM roles
+- CloudWatch logs and monitoring
+- Secrets Manager entries for database credentials
+
+**Expected Duration:** 8-15 minutes
+
+### Step 6: Verify Deployment
+
+```bash
+# Get output values
+terraform output
+
+# Check ECS services
+aws ecs describe-services \
+  --cluster todoapp-dev \
+  --services todoapp-backend todoapp-frontend \
+  --region us-east-1
+
+# View logs
+aws logs tail /ecs/todoapp-dev --follow --region us-east-1
+```
+
+---
+
+## Troubleshooting
+
+### Image Not Found Errors
+
+If ECS can't find the images, ensure:
+1. ✅ Images were successfully pushed to ECR (check AWS Console)
+2. ✅ ECR repository names match Terraform config (`todoapp-dev-backend`, `todoapp-dev-frontend`)
+3. ✅ Image tags are correct (`:latest`)
+
+### React-scripts Build Failure
+
+If frontend Docker build fails with "react-scripts: not found":
+```bash
+cd frontend
+npm install
+npm run build  # Test build locally
+cd ..
+docker build -t todoapp-frontend ./frontend
+```
+
+### Session Token Expired
+
+If you get "InvalidClientTokenId" errors:
+```bash
+# Re-export AWS credentials
+export AWS_ACCESS_KEY_ID="your_key"
+export AWS_SECRET_ACCESS_KEY="your_secret"
+export AWS_SESSION_TOKEN="your_token"
+
+# Verify credentials work
+aws sts get-caller-identity
+```
+
+### Resource Already Exists Errors
+
+These are now handled with `force_delete` flags. If you still encounter them:
+```bash
+terraform destroy -auto-approve
+terraform apply tfplan
+```
+
+---
+
+## Local Development vs Production
+
+- **Local:** Use `docker-compose up` with `.env.local` and terminal exports
+- **Production:** Use Terraform-managed infrastructure on AWS with Secrets Manager
+
+See [Local Development](#local-development-docker-compose) for local setup.
