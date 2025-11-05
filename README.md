@@ -61,6 +61,28 @@ This base app is AWS-native and designed to be translated to other cloud platfor
 
 ### AWS Deployment
 
+#### ⚠️ Multi-User Deployment Caveat
+
+If multiple participants are deploying to the **same AWS account**, you **must customize resource names** to avoid conflicts:
+
+```bash
+terraform apply \
+  -var="project_name=YOUR_UNIQUE_NAME" \
+  -var="environment=YOUR_ENV" \
+  -var="aws_region=us-east-1" \
+  -var="db_password=YourSecurePassword123"
+```
+
+**Example:** If you're Alice and Bob is also deploying:
+- Alice uses: `-var="project_name=alice-todoapp" -var="environment=prod"`
+- Bob uses: `-var="project_name=bob-todoapp" -var="environment=staging"`
+
+This creates unique resource names (`alice-todoapp-prod-*` vs `bob-todoapp-staging-*`) and prevents naming conflicts.
+
+If each participant has their own AWS account, the default values are fine.
+
+---
+
 1. **Create AWS Secrets Manager secret**:
    ```bash
    aws secretsmanager create-secret \
