@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Get ALB DNS from environment or use default
-ALB_DNS="${ALB_DNS:-localhost:3001}"
+ALB_DNS="${ALB_DNS:-localhost}"
 
 # Generate config.json with the ALB DNS
 cat > /usr/share/nginx/html/config.json <<EOF
