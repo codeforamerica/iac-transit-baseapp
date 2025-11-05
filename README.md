@@ -38,7 +38,7 @@ This base app is AWS-native and designed to be translated to other cloud platfor
 
 2. **Set up sensitive environment variables** (required):
    
-   Export database credentials via terminal before running docker-compose:
+   Export database credentials via terminal before running docker-compose (use any username/password you prefer):
    ```bash
    export DB_USER=todoapp_user
    export DB_PASSWORD=todoapp_password
