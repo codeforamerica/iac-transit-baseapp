@@ -38,11 +38,11 @@ This base app is AWS-native and designed to be translated to other cloud platfor
 
 2. **Set up sensitive environment variables** (required):
    
-   Export database credentials via terminal before running docker-compose (use any username/password you prefer):
+   Export database credentials via terminal before running docker compose (use any username/password you prefer):
    ```bash
    export DB_USER=todoapp_user
    export DB_PASSWORD=todoapp_password
-   docker-compose up
+   docker compose up
    ```
    
    **Note:** Sensitive credentials must be set via terminal exports, not stored in files. This prevents accidental exposure to AI tools like Cursor.
@@ -50,7 +50,7 @@ This base app is AWS-native and designed to be translated to other cloud platfor
 3. **Start the application**:
    ```bash
    # Using Docker Compose (recommended)
-   docker-compose up
+   docker compose up
 
    # Or manually
    cd backend && npm install && npm start
@@ -173,8 +173,8 @@ cp .env.example .env.local
 export DB_USER=todoapp_user
 export DB_PASSWORD=todoapp_password
 
-# Then run docker-compose
-docker-compose up
+# Then run docker compose
+docker compose up
 ```
 
 ### Security with AI Tools (Cursor, Claude Code)
