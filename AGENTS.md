@@ -1,8 +1,6 @@
 # Project Purpose
 
-**To build a simple, full-stack Todo application as a base for testing Infrastructure as Code (IaC) translation between cloud platforms (AWS, Azure, GCP) using AI tools. The goal is to assess tool effectiveness for cloud migration, with deliverables including findings, guidance, and a practical playbook for engineers and architects.**
-
-This is an AWS-native reference implementation designed to be translated to other cloud platforms using AI-powered tools.
+**[Action Required: Concisely describe the single, overarching goal of this project (e.g., "To build an internal API for managing user data and providing a public search interface.").]**
 
 ---
 
