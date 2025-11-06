@@ -1,12 +1,11 @@
-const AWS = require('aws-sdk');
+const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
 const logger = require('../utils/logger');
 
 class SecretsService {
   constructor() {
-    this.secretsManager = new AWS.SecretsManager({
-      region: process.env.AWS_REGION || 'us-east-1'
-    });
-    this.secretName = process.env.SECRETS_MANAGER_SECRET_NAME || 'todoapp-secrets';
+    this.client = new SecretManagerServiceClient();
+    this.projectId = process.env.GCP_PROJECT_ID;
+    this.secretName = process.env.SECRET_MANAGER_SECRET_NAME || 'todoapp-secrets';
     this.cachedSecrets = null;
     this.cacheExpiry = null;
     this.cacheDuration = 5 * 60 * 1000; // 5 minutes
@@ -20,20 +19,19 @@ class SecretsService {
 
     try {
       // Check if we're in a cloud environment
-      if (process.env.NODE_ENV === 'production' && process.env.AWS_REGION) {
-        logger.info('Fetching secrets from AWS Secrets Manager');
+      if (process.env.NODE_ENV === 'production' && this.projectId) {
+        logger.info('Fetching secrets from GCP Secret Manager');
         
-        const result = await this.secretsManager.getSecretValue({
-          SecretId: this.secretName
-        }).promise();
-
-        const secrets = JSON.parse(result.SecretString);
+        const name = `projects/${this.projectId}/secrets/${this.secretName}/versions/latest`;
+        const [version] = await this.client.accessSecretVersion({ name });
+        
+        const secrets = JSON.parse(version.payload.data.toString());
         
         // Cache the secrets
         this.cachedSecrets = secrets;
         this.cacheExpiry = Date.now() + this.cacheDuration;
         
-        logger.info('Successfully retrieved secrets from AWS Secrets Manager');
+        logger.info('Successfully retrieved secrets from GCP Secret Manager');
         return secrets;
       } else {
         // Local development - use environment variables

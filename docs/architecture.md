@@ -6,6 +6,22 @@ The Todo App is built using a modern, cloud-native architecture designed for sca
 
 ### High-Level Architecture
 
+#### GCP Architecture
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   React SPA     │    │  Node.js API    │    │  PostgreSQL     │
+│   (Frontend)    │◄──►│   (Backend)     │◄──►│   (Database)    │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  Cloud Run      │    │   Cloud Run     │    │   Cloud SQL     │
+│  (Frontend)     │    │   (Backend)     │    │   (Managed DB)  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+#### AWS Architecture
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   React SPA     │    │  Node.js API    │    │  PostgreSQL     │
@@ -33,22 +49,51 @@ The Todo App is built using a modern, cloud-native architecture designed for sca
 
 #### Backend (Node.js/Express)
 - **Technology**: Node.js 18 with Express.js
-- **Deployment**: Containerized with ECS Fargate
+- **Deployment**: 
+  - **GCP**: Containerized with Cloud Run
+  - **AWS**: Containerized with ECS Fargate
 - **Features**:
   - RESTful API endpoints
   - Database abstraction layer
-  - Secrets management integration
+  - Secrets management integration (GCP Secret Manager / AWS Secrets Manager)
   - Comprehensive logging
   - Health check endpoints
 
 #### Database (PostgreSQL)
 - **Technology**: PostgreSQL 15
-- **Deployment**: AWS RDS with Multi-AZ
+- **Deployment**: 
+  - **GCP**: Cloud SQL for PostgreSQL
+  - **AWS**: RDS PostgreSQL
 - **Features**:
   - Automated backups
   - Performance monitoring
   - Encryption at rest
   - Connection pooling
+
+### GCP Infrastructure
+
+#### Compute
+- **Cloud Run**: Serverless container platform
+- **Auto Scaling**: Automatically scales to zero when not in use
+- **HTTPS**: Built-in HTTPS with automatic SSL certificates
+- **VPC Connector**: Enables private IP access to Cloud SQL
+
+#### Networking
+- **VPC Network**: Isolated network environment
+- **Subnets**: Regional subnets (public and private)
+- **Firewall Rules**: Network-level access control
+- **VPC Flow Logs**: Network traffic logging
+
+#### Security
+- **Service Accounts**: Least privilege access
+- **Secret Manager**: Secure credential storage
+- **Private IP**: Cloud SQL accessible via private IP through VPC connector
+- **Encryption**: At rest and in transit
+
+#### Monitoring
+- **Cloud Logging**: Centralized logging with 30-day retention
+- **Cloud Monitoring**: Metrics and alerts
+- **Cloud SQL Insights**: Database performance monitoring
 
 ### AWS Infrastructure
 
@@ -145,24 +190,28 @@ The Todo App is built using a modern, cloud-native architecture designed for sca
 
 ## Translation Readiness
 
-This architecture is designed to be easily translatable to other cloud platforms:
+This architecture has been successfully translated from AWS to GCP and can be further translated to Azure:
 
-### AWS → Azure
+### AWS → GCP (Completed ✓)
+- ECS Fargate → Cloud Run (serverless containers)
+- RDS PostgreSQL → Cloud SQL for PostgreSQL
+- Secrets Manager → Secret Manager
+- VPC → VPC Network
+- ALB → Cloud Run built-in HTTPS/routing
+- ECR → Artifact Registry
+- CloudWatch → Cloud Logging
+- IAM Roles → Service Accounts
+
+### AWS → Azure (Future)
 - ECS → Azure Container Instances
 - RDS → Azure Database for PostgreSQL
 - Secrets Manager → Azure Key Vault
 - VPC → Azure Virtual Network
 - ALB → Azure Application Gateway
 
-### AWS → GCP
-- ECS → Cloud Run
-- RDS → Cloud SQL
-- Secrets Manager → Secret Manager
-- VPC → VPC Network
-- ALB → Cloud Load Balancing
-
-### Code Adaptation Points
-- Secrets service implementation
-- Database connection configuration
-- Logging and monitoring setup
-- Environment variable management
+### Code Adaptation Points (Completed for GCP)
+- ✅ Secrets service implementation (updated to use GCP Secret Manager)
+- ✅ Database connection configuration (updated for Cloud SQL private IP)
+- ✅ Logging and monitoring setup (updated for Cloud Logging)
+- ✅ Environment variable management (updated for GCP services)
+- ✅ Deployment scripts (updated for Artifact Registry and Cloud Run)

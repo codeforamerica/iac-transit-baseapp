@@ -1,5 +1,67 @@
 # Deployment Guide - IaC TRANSIT Todo App
 
+## GCP Deployment
+
+### Prerequisites
+
+1. **Google Cloud SDK**: Install and authenticate
+   ```bash
+   gcloud auth login
+   gcloud config set project YOUR_PROJECT_ID
+   ```
+
+2. **Enable Required APIs**: Run the setup script
+   ```bash
+   ./scripts/setup-gcp.sh
+   ```
+
+3. **Update Terraform Backend**: Edit `infrastructure/main.tf` and replace `PROJECT_ID` in the GCS bucket name with your actual project ID.
+
+### Deployment Steps
+
+1. **Set Database Password**:
+   ```bash
+   export DB_PASSWORD=YourSecurePassword123
+   ```
+
+2. **Deploy Everything**:
+   ```bash
+   ./scripts/deploy.sh
+   ```
+
+The deployment script will:
+- Build Docker images for backend and frontend
+- Push images to Artifact Registry
+- Deploy infrastructure with Terraform (VPC, Cloud SQL, Cloud Run, Secret Manager)
+- Configure service accounts and IAM permissions
+- Create Cloud Run services with proper networking
+
+### GCP-Specific Architecture Notes
+
+- **Cloud Run**: Services automatically scale to zero when not in use, reducing costs
+- **VPC Connector**: Enables Cloud Run to access Cloud SQL via private IP
+- **Secret Manager**: Database credentials stored securely and accessed at runtime
+- **HTTPS**: Cloud Run services are automatically HTTPS-enabled (no load balancer needed)
+
+### Accessing the Application
+
+After deployment:
+```bash
+cd infrastructure
+terraform output application_url
+```
+
+### Troubleshooting GCP Deployment
+
+- **Image not found**: Ensure images were pushed to Artifact Registry
+- **Cloud SQL connection**: Verify VPC connector is configured and Cloud Run has `cloudsql.client` role
+- **Secret access**: Verify service account has `secretmanager.secretAccessor` role
+- **View logs**: `gcloud logging read "resource.type=cloud_run_revision" --limit 50`
+
+---
+
+## AWS Deployment
+
 ## 🎯 Critical Architecture Fixes (Read First!)
 
 This deployment guide includes several key fixes and design decisions that are **essential for reproducibility**:

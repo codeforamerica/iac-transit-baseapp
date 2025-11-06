@@ -19,7 +19,7 @@ app.use(helmet());
 // CORS configuration
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URL 
+    ? (process.env.FRONTEND_URL || '*')  // Allow Cloud Run frontend URL or wildcard
     : ['http://localhost:3000', 'http://frontend:3000'],
   credentials: true
 }));
