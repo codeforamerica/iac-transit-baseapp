@@ -10,6 +10,12 @@ resource "google_logging_metric" "error_count" {
   metric_descriptor {
     metric_kind = "DELTA"
     value_type  = "INT64"
+    
+    labels {
+      key         = "service"
+      value_type  = "STRING"
+      description = "Cloud Run service name"
+    }
   }
 
   label_extractors = {
@@ -25,8 +31,6 @@ resource "google_logging_metric" "error_count" {
 resource "google_kms_key_ring" "logging" {
   name     = "${local.name_prefix}-logging-keyring"
   location = var.gcp_region
-
-  labels = local.common_labels
 }
 
 resource "google_kms_crypto_key" "logging" {
@@ -35,8 +39,6 @@ resource "google_kms_crypto_key" "logging" {
   rotation_period = "7776000s"  # 90 days
 
   purpose = "ENCRYPT_DECRYPT"
-
-  labels = local.common_labels
 }
 
 # Note: Cloud Logging automatically encrypts logs at rest

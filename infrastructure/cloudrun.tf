@@ -23,11 +23,19 @@ resource "google_cloud_run_service" "backend" {
   name     = "${local.name_prefix}-backend"
   location = var.gcp_region
 
+  lifecycle {
+    # Allow service to be created even if image doesn't exist yet
+    # Image will be updated when we push Docker images
+    ignore_changes = [template[0].spec[0].containers[0].image]
+  }
+
   template {
     spec {
       service_account_name = google_service_account.cloudrun.email
       
       containers {
+        # Use placeholder image initially - will be updated when we push actual image
+        # You can use any public image here temporarily, or build/push images first
         image = "${var.artifact_registry_location}-docker.pkg.dev/${var.gcp_project_id}/${google_artifact_registry_repository.backend.repository_id}/backend:latest"
         
         ports {
@@ -52,7 +60,7 @@ resource "google_cloud_run_service" "backend" {
         }
         env {
           name  = "DB_HOST"
-          value = google_sql_database_instance.main.private_ip_address
+          value = google_sql_database_instance.main.public_ip_address
         }
         env {
           name  = "DB_PORT"
@@ -103,10 +111,10 @@ resource "google_cloud_run_service" "backend" {
       annotations = {
         "autoscaling.knative.dev/minScale" = tostring(var.cloudrun_min_instances)
         "autoscaling.knative.dev/maxScale" = tostring(var.cloudrun_max_instances)
-        "run.googleapis.com/vpc-access-connector" = google_vpc_access_connector.main.name
-        "run.googleapis.com/vpc-access-egress"    = "private-ranges-only"
+        # VPC connector commented out - not needed for public IP Cloud SQL
+        # "run.googleapis.com/vpc-access-connector" = google_vpc_access_connector.main.name
+        # "run.googleapis.com/vpc-access-egress"    = "private-ranges-only"
       }
-      labels = local.common_labels
     }
   }
 
@@ -115,11 +123,8 @@ resource "google_cloud_run_service" "backend" {
     latest_revision = true
   }
 
-  labels = local.common_labels
-
   depends_on = [
     google_service_account.cloudrun,
-    google_vpc_access_connector.main,
     google_sql_database_instance.main
   ]
 }
@@ -128,6 +133,12 @@ resource "google_cloud_run_service" "backend" {
 resource "google_cloud_run_service" "frontend" {
   name     = "${local.name_prefix}-frontend"
   location = var.gcp_region
+
+  lifecycle {
+    # Allow service to be created even if image doesn't exist yet
+    # Image will be updated when we push Docker images
+    ignore_changes = [template[0].spec[0].containers[0].image]
+  }
 
   template {
     spec {
@@ -182,7 +193,6 @@ resource "google_cloud_run_service" "frontend" {
         "autoscaling.knative.dev/minScale" = tostring(var.cloudrun_min_instances)
         "autoscaling.knative.dev/maxScale" = tostring(var.cloudrun_max_instances)
       }
-      labels = local.common_labels
     }
   }
 
@@ -190,8 +200,6 @@ resource "google_cloud_run_service" "frontend" {
     percent         = 100
     latest_revision = true
   }
-
-  labels = local.common_labels
 
   depends_on = [
     google_service_account.cloudrun,

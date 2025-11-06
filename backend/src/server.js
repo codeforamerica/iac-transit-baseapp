@@ -9,16 +9,21 @@ const HOST = process.env.HOST || '0.0.0.0';
 const gracefulShutdown = (signal) => {
   logger.info(`Received ${signal}. Starting graceful shutdown...`);
   
-  server.close(() => {
-    logger.info('HTTP server closed');
-    process.exit(0);
-  });
+  const serverInstance = global.server;
+  if (serverInstance) {
+    serverInstance.close(() => {
+      logger.info('HTTP server closed');
+      process.exit(0);
+    });
 
-  // Force close after 10 seconds
-  setTimeout(() => {
-    logger.error('Forced shutdown after timeout');
-    process.exit(1);
-  }, 10000);
+    // Force close after 10 seconds
+    setTimeout(() => {
+      logger.error('Forced shutdown after timeout');
+      process.exit(1);
+    }, 10000);
+  } else {
+    process.exit(0);
+  }
 };
 
 // Handle shutdown signals

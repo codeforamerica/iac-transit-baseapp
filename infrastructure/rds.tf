@@ -1,19 +1,24 @@
-# Private Service Connection for Cloud SQL
-resource "google_compute_global_address" "private_ip_address" {
-  name          = "${local.name_prefix}-private-ip"
-  purpose       = "VPC_PEERING"
-  address_type  = "INTERNAL"
-  prefix_length = 16
-  network       = google_compute_network.main.id
+# Note: Private IP for Cloud SQL requires Service Networking API permissions
+# For testing, we'll use public IP with authorized networks
+# To use private IP later, you'll need to:
+# 1. Have Service Networking Admin role
+# 2. Uncomment the private IP configuration below
+# 3. Set up VPC peering connection manually or with proper permissions
 
-  labels = local.common_labels
-}
-
-resource "google_service_networking_connection" "private_vpc_connection" {
-  network                 = google_compute_network.main.id
-  service                 = "servicenetworking.googleapis.com"
-  reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
-}
+# Private Service Connection for Cloud SQL (commented out - requires permissions)
+# resource "google_compute_global_address" "private_ip_address" {
+#   name          = "${local.name_prefix}-private-ip"
+#   purpose       = "VPC_PEERING"
+#   address_type  = "INTERNAL"
+#   prefix_length = 16
+#   network       = google_compute_network.main.id
+# }
+# 
+# resource "google_service_networking_connection" "private_vpc_connection" {
+#   network                 = google_compute_network.main.id
+#   service                 = "servicenetworking.googleapis.com"
+#   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
+# }
 
 # Cloud SQL Instance
 resource "google_sql_database_instance" "main" {
@@ -63,12 +68,15 @@ resource "google_sql_database_instance" "main" {
       value = "on"
     }
 
-    # IP configuration - use private IP
+    # IP configuration - use public IP for testing (can be changed to private IP later)
     ip_configuration {
-      ipv4_enabled                                  = false
-      private_network                               = google_compute_network.main.id
-      enable_private_path_for_google_cloud_services = true
-      require_ssl                                   = true
+      ipv4_enabled    = true
+      ssl_mode        = "ENCRYPTED_ONLY"
+      # Allow access from Cloud Run (0.0.0.0/0 is permissive - restrict in production)
+      authorized_networks {
+        value = "0.0.0.0/0"
+        name  = "cloud-run-access"
+      }
     }
 
     # Insights configuration (similar to Performance Insights)
@@ -82,10 +90,6 @@ resource "google_sql_database_instance" "main" {
 
   # Deletion protection
   deletion_protection = var.environment == "prod" ? true : false
-
-  depends_on = [google_service_networking_connection.private_vpc_connection]
-
-  labels = local.common_labels
 }
 
 # Cloud SQL Database

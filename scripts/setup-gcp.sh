@@ -70,7 +70,9 @@ if gsutil ls -b gs://$BUCKET_NAME &> /dev/null; then
 else
     gsutil mb -p $GCP_PROJECT_ID -c STANDARD -l $REPO_LOCATION gs://$BUCKET_NAME
     gsutil versioning set on gs://$BUCKET_NAME
-    gsutil lifecycle set - <<EOF gs://$BUCKET_NAME
+    # Set lifecycle policy using a temporary file
+    LIFECYCLE_TMP=$(mktemp)
+    cat > "$LIFECYCLE_TMP" <<EOF
 {
   "rule": [
     {
@@ -80,59 +82,20 @@ else
   ]
 }
 EOF
+    gsutil lifecycle set "$LIFECYCLE_TMP" gs://$BUCKET_NAME
+    rm -f "$LIFECYCLE_TMP"
     echo "✅ GCS bucket created with versioning enabled"
 fi
 echo ""
 
-# Create service account for Cloud Run
-echo "👤 Creating service account for Cloud Run..."
-SA_NAME="todoapp-cloudrun-sa"
-SA_EMAIL="${SA_NAME}@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
-
-if gcloud iam service-accounts describe $SA_EMAIL --project=$GCP_PROJECT_ID &> /dev/null; then
-    echo "⚠️  Service account already exists"
-else
-    gcloud iam service-accounts create $SA_NAME \
-        --display-name="Todo App Cloud Run Service Account" \
-        --description="Service account for Todo App Cloud Run services" \
-        --project=$GCP_PROJECT_ID
-    echo "✅ Service account created"
-fi
-
-# Grant necessary permissions
-echo "🔐 Granting permissions to service account..."
-gcloud projects add-iam-policy-binding $GCP_PROJECT_ID \
-    --member="serviceAccount:${SA_EMAIL}" \
-    --role="roles/secretmanager.secretAccessor" \
-    --condition=None
-
-gcloud projects add-iam-policy-binding $GCP_PROJECT_ID \
-    --member="serviceAccount:${SA_EMAIL}" \
-    --role="roles/logging.logWriter" \
-    --condition=None
-
-gcloud projects add-iam-policy-binding $GCP_PROJECT_ID \
-    --member="serviceAccount:${SA_EMAIL}" \
-    --role="roles/cloudsql.client" \
-    --condition=None
-
-echo "✅ Permissions granted"
-echo ""
-
-# Create service account for Cloud SQL
-echo "👤 Creating service account for Cloud SQL..."
-SQL_SA_NAME="todoapp-cloudsql-sa"
-SQL_SA_EMAIL="${SQL_SA_NAME}@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
-
-if gcloud iam service-accounts describe $SQL_SA_EMAIL --project=$GCP_PROJECT_ID &> /dev/null; then
-    echo "⚠️  Cloud SQL service account already exists"
-else
-    gcloud iam service-accounts create $SQL_SA_NAME \
-        --display-name="Todo App Cloud SQL Service Account" \
-        --description="Service account for Todo App Cloud SQL instance" \
-        --project=$GCP_PROJECT_ID
-    echo "✅ Cloud SQL service account created"
-fi
+# Note: Service accounts and IAM bindings are managed by Terraform
+# The service accounts created by Terraform will have the "mp" prefix
+# (e.g., mp-todoapp-dev-cloudrun-sa) and all necessary permissions.
+# 
+# If you want to pre-create service accounts manually, you can do so,
+# but Terraform will create its own with the proper naming convention.
+echo "ℹ️  Service accounts and IAM permissions will be created by Terraform"
+echo "   (Service accounts will be prefixed with 'mp' for uniqueness)"
 echo ""
 
 echo "🎉 GCP setup complete!"

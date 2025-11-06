@@ -9,7 +9,7 @@ terraform {
   }
 
   backend "gcs" {
-    bucket = "iac-transit-terraform-state-PROJECT_ID"
+    bucket = "iac-transit-terraform-state-se-discovery-iac-translation"
     prefix = "todoapp/terraform.tfstate"
   }
 }

@@ -23,9 +23,9 @@ output "cloud_sql_connection_name" {
   value       = google_sql_database_instance.main.connection_name
 }
 
-output "cloud_sql_private_ip" {
-  description = "Cloud SQL instance private IP address"
-  value       = google_sql_database_instance.main.private_ip_address
+output "cloud_sql_public_ip" {
+  description = "Cloud SQL instance public IP address"
+  value       = google_sql_database_instance.main.public_ip_address
   sensitive   = true
 }
 

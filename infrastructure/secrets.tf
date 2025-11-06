@@ -14,7 +14,7 @@ resource "google_secret_manager_secret_version" "main" {
   secret = google_secret_manager_secret.main.id
   
   secret_data = jsonencode({
-    db_host     = google_sql_database_instance.main.private_ip_address
+    db_host     = google_sql_database_instance.main.public_ip_address
     db_port     = "5432"
     db_name     = google_sql_database.main.name
     db_user     = google_sql_user.main.name

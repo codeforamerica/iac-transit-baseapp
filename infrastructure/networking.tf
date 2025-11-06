@@ -3,8 +3,6 @@ resource "google_compute_network" "main" {
   name                    = "${local.name_prefix}-vpc"
   auto_create_subnetworks = false
   routing_mode            = "REGIONAL"
-
-  labels = local.common_labels
 }
 
 # Public Subnets
@@ -25,10 +23,6 @@ resource "google_compute_subnetwork" "public" {
     flow_sampling        = 0.5
     metadata            = "INCLUDE_ALL_METADATA"
   }
-
-  labels = merge(local.common_labels, {
-    type = "public"
-  })
 }
 
 # Private Subnets
@@ -49,25 +43,21 @@ resource "google_compute_subnetwork" "private" {
     flow_sampling        = 0.5
     metadata            = "INCLUDE_ALL_METADATA"
   }
-
-  labels = merge(local.common_labels, {
-    type = "private"
-  })
 }
 
 # VPC Connector for Cloud Run to access private resources (Cloud SQL)
-resource "google_vpc_access_connector" "main" {
-  name          = "${local.name_prefix}-vpc-connector"
-  region        = var.gcp_region
-  network       = google_compute_network.main.name
-  ip_cidr_range = "10.8.0.0/28"  # Small CIDR for connector
-
-  min_instances = 2
-  max_instances = 3
-  machine_type  = "e2-micro"
-
-  labels = local.common_labels
-}
+# Commented out - not needed when using public IP for Cloud SQL
+# Uncomment if you set up private IP for Cloud SQL
+# resource "google_vpc_access_connector" "main" {
+#   name          = "mp-todoapp-vpc-conn"  # Shortened to meet naming requirements
+#   region        = var.gcp_region
+#   network       = google_compute_network.main.name
+#   ip_cidr_range = "10.8.0.0/28"  # Small CIDR for connector
+#
+#   min_instances = 2
+#   max_instances = 3
+#   machine_type  = "e2-micro"
+# }
 
 # Note: GCP VPC networking is simpler than AWS
 # - No need for Internet Gateway (automatic)
