@@ -1,19 +1,19 @@
 #!/bin/bash
 
-# Deployment script for AWS
+# Deployment script for GCP
 set -e
 
-echo "🚀 Deploying Todo App to AWS..."
+echo "🚀 Deploying Todo App to GCP..."
 
-# Check if AWS CLI is installed and configured
-if ! command -v aws &> /dev/null; then
-    echo "❌ AWS CLI is not installed. Please install AWS CLI and try again."
+# Check if gcloud CLI is installed and configured
+if ! command -v gcloud &> /dev/null; then
+    echo "❌ gcloud CLI is not installed. Please install Google Cloud SDK and try again."
     exit 1
 fi
 
-# Check if AWS credentials are configured
-if ! aws sts get-caller-identity &> /dev/null; then
-    echo "❌ AWS credentials are not configured. Please run 'aws configure' and try again."
+# Check if user is authenticated
+if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" &> /dev/null; then
+    echo "❌ No active gcloud authentication found. Please run 'gcloud auth login' and try again."
     exit 1
 fi
 
@@ -23,14 +23,24 @@ if ! command -v terraform &> /dev/null; then
     exit 1
 fi
 
-# Get AWS account ID and region
-AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-AWS_REGION=$(aws configure get region)
+# Get GCP project ID and region
+GCP_PROJECT_ID=$(gcloud config get-value project 2>/dev/null)
+if [ -z "$GCP_PROJECT_ID" ]; then
+    echo "❌ No GCP project is set. Please set a project with 'gcloud config set project PROJECT_ID'"
+    exit 1
+fi
+
+GCP_REGION=${GCP_REGION:-us-central1}
+ARTIFACT_REGISTRY_LOCATION=${ARTIFACT_REGISTRY_LOCATION:-us-central1}
 
 echo "📋 Deployment Configuration:"
-echo "   AWS Account ID: $AWS_ACCOUNT_ID"
-echo "   AWS Region: $AWS_REGION"
+echo "   GCP Project ID: $GCP_PROJECT_ID"
+echo "   GCP Region: $GCP_REGION"
 echo ""
+
+# Configure Docker for Artifact Registry
+echo "🔐 Configuring Docker for Artifact Registry..."
+gcloud auth configure-docker ${ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev --quiet
 
 # Build and push Docker images
 echo "🔨 Building and pushing Docker images..."
@@ -38,22 +48,30 @@ echo "🔨 Building and pushing Docker images..."
 # Backend image
 echo "📦 Building backend image..."
 cd backend
-docker build -t todoapp-backend .
-docker tag todoapp-backend:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/todoapp-dev-backend:latest
+docker build -t todoapp-backend:latest .
 
-echo "📤 Pushing backend image to ECR..."
-aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/todoapp-dev-backend:latest
+BACKEND_REPO="${ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/todoapp-dev-backend"
+docker tag todoapp-backend:latest ${BACKEND_REPO}/backend:latest
+
+echo "📤 Pushing backend image to Artifact Registry..."
+docker push ${BACKEND_REPO}/backend:latest
 cd ..
 
 # Frontend image
 echo "📦 Building frontend image..."
 cd frontend
-docker build -t todoapp-frontend .
-docker tag todoapp-frontend:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/todoapp-dev-frontend:latest
+# Install react-scripts locally if needed
+if [ ! -d "node_modules" ]; then
+    echo "📥 Installing frontend dependencies..."
+    npm install
+fi
+docker build -t todoapp-frontend:latest .
 
-echo "📤 Pushing frontend image to ECR..."
-docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/todoapp-dev-frontend:latest
+FRONTEND_REPO="${ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/todoapp-dev-frontend"
+docker tag todoapp-frontend:latest ${FRONTEND_REPO}/frontend:latest
+
+echo "📤 Pushing frontend image to Artifact Registry..."
+docker push ${FRONTEND_REPO}/frontend:latest
 cd ..
 
 # Deploy infrastructure with Terraform
@@ -65,7 +83,11 @@ terraform init
 
 # Plan deployment
 echo "📋 Planning Terraform deployment..."
-terraform plan -out=tfplan
+terraform plan \
+  -var="gcp_project_id=${GCP_PROJECT_ID}" \
+  -var="gcp_region=${GCP_REGION}" \
+  -var="db_password=${DB_PASSWORD:-ChangeMe123!}" \
+  -out=tfplan
 
 # Apply deployment
 echo "🚀 Applying Terraform deployment..."
@@ -79,10 +101,10 @@ echo ""
 echo "🎉 Deployment complete!"
 echo ""
 echo "🌐 Application URL: $(terraform output -raw application_url)"
-echo "📊 ECS Cluster: $(terraform output -raw ecs_cluster_name)"
-echo "🗄️  RDS Endpoint: $(terraform output -raw rds_endpoint)"
+echo "🔧 Backend Service URL: $(terraform output -raw backend_service_url)"
+echo "🗄️  Cloud SQL Connection: $(terraform output -raw cloud_sql_connection_name)"
 echo ""
 echo "📝 Next steps:"
-echo "   1. Update your DNS to point to the ALB if using a custom domain"
-echo "   2. Monitor the application in the AWS Console"
-echo "   3. Check CloudWatch logs for any issues"
+echo "   1. Monitor the application in the GCP Console"
+echo "   2. Check Cloud Logging for any issues"
+echo "   3. Verify Cloud Run services are running correctly"

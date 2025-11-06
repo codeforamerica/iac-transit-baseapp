@@ -1,16 +1,18 @@
 #!/bin/sh
 
-# Get ALB DNS from environment or use default
-ALB_DNS="${ALB_DNS:-localhost}"
+# Get Cloud Run URL from environment or use default
+if [ -z "$CLOUD_RUN_URL" ]; then
+  CLOUD_RUN_URL="http://localhost:3001"
+fi
 
-# Generate config.json with the ALB DNS
+# Generate config.json with the Cloud Run URL
 cat > /usr/share/nginx/html/config.json <<EOF
 {
-  "apiUrl": "http://${ALB_DNS}:3001"
+  "apiUrl": "${CLOUD_RUN_URL}"
 }
 EOF
 
-echo "Generated config.json with apiUrl: http://${ALB_DNS}:3001"
+echo "Generated config.json with apiUrl: ${CLOUD_RUN_URL}"
 
 # Start nginx
 exec nginx -g "daemon off;"

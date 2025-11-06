@@ -1,0 +1,5 @@
+gcp_project_id = "se-discovery-iac-translation"
+gcp_region     = "us-central1"
+db_password    = "scoobydoo123"
+project_name   = "todoapp"
+environment    = "dev"

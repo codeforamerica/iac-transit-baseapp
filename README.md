@@ -14,9 +14,11 @@ This base app is AWS-native and designed to be translated to other cloud platfor
 
 - **Frontend**: React SPA with modern, sleek UI
 - **Backend**: Node.js/Express API
-- **Database**: RDS PostgreSQL (AWS) / Local JSON for development
-- **Infrastructure**: AWS ECS Fargate, RDS, Secrets Manager, VPC (simplified for discovery cycle)
-- **Secrets Management**: AWS Secrets Manager (production) / Environment variables (local)
+- **Database**: Cloud SQL PostgreSQL (GCP) / RDS PostgreSQL (AWS) / Local JSON for development
+- **Infrastructure**: 
+  - **GCP**: Cloud Run, Cloud SQL, Secret Manager, VPC Network
+  - **AWS**: ECS Fargate, RDS, Secrets Manager, VPC (simplified for discovery cycle)
+- **Secrets Management**: GCP Secret Manager / AWS Secrets Manager (production) / Environment variables (local)
 
 ## Quick Start
 
@@ -24,7 +26,7 @@ This base app is AWS-native and designed to be translated to other cloud platfor
 
 - Node.js 18+
 - Docker & Docker Compose
-- AWS CLI (for cloud deployment)
+- Google Cloud SDK (for GCP deployment) or AWS CLI (for AWS deployment)
 - Terraform (for infrastructure)
 
 ### Local Development
@@ -58,6 +60,47 @@ This base app is AWS-native and designed to be translated to other cloud platfor
    ```
 
 4. **Access the app**: http://localhost:3000
+
+### GCP Deployment
+
+#### Prerequisites
+
+1. **Set up GCP project**:
+   ```bash
+   # Authenticate with GCP
+   gcloud auth login
+   gcloud config set project YOUR_PROJECT_ID
+   
+   # Run setup script to enable APIs and create resources
+   ./scripts/setup-gcp.sh
+   ```
+
+2. **Update Terraform backend** (in `infrastructure/main.tf`):
+   - Replace `PROJECT_ID` in the GCS bucket name with your actual project ID
+
+3. **Deploy infrastructure and application**:
+   ```bash
+   # Set database password
+   export DB_PASSWORD=YourSecurePassword123
+   
+   # Deploy everything
+   ./scripts/deploy.sh
+   ```
+
+The deployment script will:
+- Build and push Docker images to Artifact Registry
+- Deploy infrastructure with Terraform
+- Create Cloud Run services for frontend and backend
+- Set up Cloud SQL PostgreSQL database
+- Configure Secret Manager with database credentials
+
+#### Access the Application
+
+After deployment, get the application URL:
+```bash
+cd infrastructure
+terraform output application_url
+```
 
 ### AWS Deployment
 
@@ -201,18 +244,18 @@ We use `.cursorignore` to exclude:
 
 This helps reduce noise in AI processing, but **primary protection comes from not storing secrets in files.**
 
-### AWS Production Secrets
+### Cloud Production Secrets
 
 For production deployment:
-- Store all secrets in **AWS Secrets Manager**
-- Retrieve at runtime via AWS SDK
+- **GCP**: Store all secrets in **GCP Secret Manager**, retrieve at runtime via Secret Manager client
+- **AWS**: Store all secrets in **AWS Secrets Manager**, retrieve at runtime via AWS SDK
 - Never commit or expose credentials
-- See [AWS Deployment](#aws-deployment) section for setup
+- See [GCP Deployment](#gcp-deployment) or [AWS Deployment](#aws-deployment) sections for setup
 
 ### Best Practices
 
 ✅ **DO:**
-- Keep sensitive credentials in terminal exports or AWS Secrets Manager
+- Keep sensitive credentials in terminal exports or cloud Secret Manager (GCP Secret Manager / AWS Secrets Manager)
 - Use `.env.local` for non-sensitive configuration only
 - Add sensitive file patterns to `.cursorignore` and `.gitignore`
 - Rotate credentials regularly
@@ -227,7 +270,16 @@ For production deployment:
 
 ## Translation Guide
 
-This AWS-native application is designed to be translated to other cloud platforms:
+This application has been translated from AWS to GCP and can be further translated to Azure:
+
+### AWS → GCP (Completed)
+- ECS Fargate → Cloud Run
+- RDS PostgreSQL → Cloud SQL for PostgreSQL
+- Secrets Manager → Secret Manager
+- VPC → VPC Network
+- CloudWatch Logs → Cloud Logging
+- ECR → Artifact Registry
+- ALB → Cloud Run built-in HTTPS/routing
 
 ### AWS → Azure
 - ECS → Azure Container Instances
@@ -235,13 +287,6 @@ This AWS-native application is designed to be translated to other cloud platform
 - Secrets Manager → Azure Key Vault
 - VPC → Azure Virtual Network
 - **CloudWatch Logs → Azure Monitor / Azure Log Analytics**
-
-### AWS → GCP
-- ECS → Cloud Run
-- RDS → Cloud SQL
-- Secrets Manager → Secret Manager
-- VPC → VPC Network
-- **CloudWatch Logs → Cloud Logging**
 
 ## Logging
 
@@ -251,6 +296,12 @@ The application includes comprehensive logging in both local and cloud environme
 - **Log files**: `backend/logs/*.log` (info.log, error.log, warn.log, debug.log)
 - **Features**: Timestamps, log levels, structured metadata
 - **Cost**: Free (local file storage)
+
+### GCP Deployment
+- **Service**: Cloud Logging
+- **Log retention**: 30 days (default)
+- **Cost**: ~$0.50–2/month (first 50GB free)
+- **Access**: GCP Console → Logging → Logs Explorer
 
 ### AWS Deployment
 - **Service**: CloudWatch Logs
@@ -282,17 +333,30 @@ This is a base template for IaC translation testing. Feel free to modify and ext
 
 ## Cost Considerations
 
+### GCP Deployment
+- Cloud SQL: ~$7–12/month (db-f1-micro, 31-day backups)
+- Cloud Run: ~$5–10/month (scales to zero when not in use, pay per request)
+- VPC Flow Logs: ~$0.50/month (Cloud Logging ingestion)
+- Artifact Registry: ~$0.10/month (storage)
+- Cloud Logging: ~$0.50–2/month (first 50GB free)
+- VPC Connector: ~$2–5/month (min instances)
+
+**Total: ~$15–30/month for the GCP stack.**
+
+*Note: Cloud Run automatically scales to zero when not in use, significantly reducing costs during idle periods.*
+
+### AWS Deployment
 - RDS: ~$15–20/month (db.t3.micro, 31-day backups)
 - ECS Fargate: ~$10–15/month (256 CPU, 512 MB)
 - VPC Flow Logs: ~$0.50/month (CloudWatch Logs ingestion)
 - KMS encryption: ~$1/month (CMK for logs)
 - Data transfer: minimal for testing
 
-**Total: ~$27–37/month for the simplified stack.**
+**Total: ~$27–37/month for the AWS stack.**
 
 *Note: ALB and NAT Gateways have been removed to reduce costs for the discovery cycle. ECS tasks run in public subnets with direct public IPs, while RDS remains in private subnets for security.*
 
-**AWS Compliance Updates**: The infrastructure now includes VPC Flow Logs, KMS-encrypted CloudWatch Logs, extended RDS backup retention (31 days), and restrictive security group rules to meet AWS baseline compliance requirements.
+**Compliance Updates**: Both GCP and AWS infrastructure include VPC Flow Logs, encrypted logging, extended database backup retention (31 days), and restrictive firewall/security group rules to meet baseline compliance requirements.
 
 ## Acknowledgments
 

@@ -1,22 +1,23 @@
-# Secrets Manager Secret with unique name
-resource "aws_secretsmanager_secret" "main" {
-  name                    = var.secrets_manager_secret_name != "" ? var.secrets_manager_secret_name : "${local.name_prefix}-db-secret-${data.aws_caller_identity.current.account_id}-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
-  description             = "Database credentials for Todo App"
-  recovery_window_in_days = 7
+# Secret Manager Secret with unique name
+resource "google_secret_manager_secret" "main" {
+  secret_id = var.secret_manager_secret_name != "" ? var.secret_manager_secret_name : "${local.name_prefix}-db-secret-${data.google_project.current.project_id}-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
+  
+  replication {
+    auto {}
+  }
 
-  tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-secrets"
-  })
+  labels = local.common_labels
 }
 
-# Secrets Manager Secret Version
-resource "aws_secretsmanager_secret_version" "main" {
-  secret_id = aws_secretsmanager_secret.main.id
-  secret_string = jsonencode({
-    db_host     = aws_db_instance.main.address
-    db_port     = aws_db_instance.main.port
-    db_name     = aws_db_instance.main.db_name
-    db_user     = aws_db_instance.main.username
-    db_password = aws_db_instance.main.password
+# Secret Manager Secret Version
+resource "google_secret_manager_secret_version" "main" {
+  secret = google_secret_manager_secret.main.id
+  
+  secret_data = jsonencode({
+    db_host     = google_sql_database_instance.main.public_ip_address
+    db_port     = "5432"
+    db_name     = google_sql_database.main.name
+    db_user     = google_sql_user.main.name
+    db_password = google_sql_user.main.password
   })
 }

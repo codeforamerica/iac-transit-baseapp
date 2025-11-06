@@ -2,48 +2,35 @@ terraform {
   required_version = ">= 1.0"
   
   required_providers {
-    aws = {
-      source  = "hashicorp/aws"
+    google = {
+      source  = "hashicorp/google"
       version = "~> 5.0"
     }
   }
 
-  backend "s3" {
-    bucket         = "iac-transit-terraform-state"
-    key            = "todoapp/terraform.tfstate"
-    region         = "us-east-1"
-    encrypt        = true
-    dynamodb_table = "terraform-locks"
+  backend "gcs" {
+    bucket = "iac-transit-terraform-state-se-discovery-iac-translation"
+    prefix = "todoapp/terraform.tfstate"
   }
 }
 
-provider "aws" {
-  region = var.aws_region
-
-  default_tags {
-    tags = {
-      Project     = "IaC-TRANSIT"
-      Application = "TodoApp"
-      Environment = var.environment
-      ManagedBy   = "Terraform"
-    }
-  }
+provider "google" {
+  project = var.gcp_project_id
+  region  = var.gcp_region
 }
 
 # Data sources
-data "aws_availability_zones" "available" {
-  state = "available"
-}
+data "google_project" "current" {}
 
-data "aws_caller_identity" "current" {}
+data "google_client_config" "current" {}
 
 # Local values
 locals {
-  name_prefix = "${var.project_name}-${var.environment}"
+  name_prefix = "mp-${var.project_name}-${var.environment}"
   
-  common_tags = {
-    Project     = var.project_name
-    Environment = var.environment
-    ManagedBy   = "Terraform"
+  common_labels = {
+    project     = var.project_name
+    environment = var.environment
+    managed_by  = "terraform"
   }
 }

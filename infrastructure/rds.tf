@@ -1,82 +1,106 @@
-# DB Subnet Group - Updated to use public subnets for testing
-resource "aws_db_subnet_group" "main" {
-  name       = "${local.name_prefix}-db-subnet-group"
-  subnet_ids = aws_subnet.public[*].id
+# Note: Private IP for Cloud SQL requires Service Networking API permissions
+# For testing, we'll use public IP with authorized networks
+# To use private IP later, you'll need to:
+# 1. Have Service Networking Admin role
+# 2. Uncomment the private IP configuration below
+# 3. Set up VPC peering connection manually or with proper permissions
 
-  tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-db-subnet-group"
-  })
-}
+# Private Service Connection for Cloud SQL (commented out - requires permissions)
+# resource "google_compute_global_address" "private_ip_address" {
+#   name          = "${local.name_prefix}-private-ip"
+#   purpose       = "VPC_PEERING"
+#   address_type  = "INTERNAL"
+#   prefix_length = 16
+#   network       = google_compute_network.main.id
+# }
+# 
+# resource "google_service_networking_connection" "private_vpc_connection" {
+#   network                 = google_compute_network.main.id
+#   service                 = "servicenetworking.googleapis.com"
+#   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
+# }
 
-# RDS Instance
-resource "aws_db_instance" "main" {
-  identifier = "${local.name_prefix}-db"
+# Cloud SQL Instance
+resource "google_sql_database_instance" "main" {
+  name             = "${local.name_prefix}-db"
+  database_version = "POSTGRES_15"
+  region           = var.gcp_region
 
-  # Engine
-  engine         = "postgres"
-  engine_version = "15.7"
-  instance_class = var.db_instance_class
+  settings {
+    tier                        = var.db_tier
+    disk_type                   = "PD_SSD"
+    disk_size                   = var.db_disk_size
+    disk_autoresize             = var.db_disk_autoresize
+    disk_autoresize_limit       = var.db_max_disk_size
+    availability_type           = "ZONAL"
+    deletion_protection_enabled  = var.environment == "prod" ? true : false
 
-  # Storage
-  allocated_storage     = var.db_allocated_storage
-  max_allocated_storage = var.db_max_allocated_storage
-  storage_type          = "gp2"
-  storage_encrypted     = true
+    # Backup configuration
+    backup_configuration {
+      enabled                        = true
+      start_time                     = "03:00"
+      point_in_time_recovery_enabled = true
+      transaction_log_retention_days = 7
+      backup_retention_settings {
+        retained_backups = 31
+        retention_unit   = "COUNT"
+      }
+    }
 
-  # Database
-  db_name  = var.db_name
-  username = var.db_username
-  password = var.db_password
+    # Maintenance window
+    maintenance_window {
+      day          = 7  # Sunday
+      hour         = 4
+      update_track = "stable"
+    }
 
-  # Network - Using public subnets for testing
-  db_subnet_group_name   = aws_db_subnet_group.main.name
-  vpc_security_group_ids = [aws_security_group.rds.id]
-  publicly_accessible    = true
+    # Database flags
+    database_flags {
+      name  = "log_checkpoints"
+      value = "on"
+    }
+    database_flags {
+      name  = "log_connections"
+      value = "on"
+    }
+    database_flags {
+      name  = "log_disconnections"
+      value = "on"
+    }
 
-  # Backup
-  backup_retention_period = 31
-  backup_window          = "03:00-04:00"
-  maintenance_window     = "sun:04:00-sun:05:00"
+    # IP configuration - use public IP for testing (can be changed to private IP later)
+    ip_configuration {
+      ipv4_enabled    = true
+      ssl_mode        = "ENCRYPTED_ONLY"
+      # Allow access from Cloud Run (0.0.0.0/0 is permissive - restrict in production)
+      authorized_networks {
+        value = "0.0.0.0/0"
+        name  = "cloud-run-access"
+      }
+    }
 
-  # Monitoring
-  monitoring_interval = 60
-  monitoring_role_arn = aws_iam_role.rds_enhanced_monitoring.arn
-
-  # Performance Insights
-  performance_insights_enabled = true
-  performance_insights_retention_period = 7
+    # Insights configuration (similar to Performance Insights)
+    insights_config {
+      query_insights_enabled  = true
+      query_string_length      = 1024
+      record_application_tags   = true
+      record_client_address     = true
+    }
+  }
 
   # Deletion protection
   deletion_protection = var.environment == "prod" ? true : false
-  skip_final_snapshot = var.environment == "prod" ? false : true
-  final_snapshot_identifier = var.environment == "prod" ? "${local.name_prefix}-final-snapshot" : null
-
-  tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-db"
-  })
 }
 
-# IAM Role for RDS Enhanced Monitoring
-resource "aws_iam_role" "rds_enhanced_monitoring" {
-  name = "${local.name_prefix}-rds-enhanced-monitoring"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "monitoring.rds.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  tags = local.common_tags
+# Cloud SQL Database
+resource "google_sql_database" "main" {
+  name     = var.db_name
+  instance = google_sql_database_instance.main.name
 }
 
-resource "aws_iam_role_policy_attachment" "rds_enhanced_monitoring" {
-  role       = aws_iam_role.rds_enhanced_monitoring.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
+# Cloud SQL User
+resource "google_sql_user" "main" {
+  name     = var.db_username
+  instance = google_sql_database_instance.main.name
+  password = var.db_password
 }
