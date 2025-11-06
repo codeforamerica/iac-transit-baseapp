@@ -1,6 +1,10 @@
 # Project Purpose
 
-**[Action Required: Concisely describe the single, overarching goal of this project (e.g., "To build an internal API for managing user data and providing a public search interface.").]**
+This base app will be used for our discovery cycle to test how AI tools translate Infrastructure as Code (IaC) between AWS, Azure, and GCP—using a simple full-stack app—to simplify migrations. The goal is to assess tool effectiveness, with deliverables including findings, guidance, and a practical playbook for engineers and architects.
+
+This base app is AWS-native and designed to be translated to other cloud platforms using AI tools.
+
+For this specific instance we will be using the AWS terraform scripts in the /infrastructure folder as a starting point for migrating the AWS based infrastructure to Azure infrastructure. 
 
 ---
 
@@ -23,6 +27,8 @@ When we think we're right, it's **good to push back, but we should cite evidence
 - **Preserve comments.** They're documentation, not clutter.
 
 - Write **evergreen code**. Describe what code does, not when it was written (i.e., avoid 'newFunction' or 'temp_fix').
+
+- Create a new branch and work with pull requests when implementing new features.
 
 ---
 
